@@ -3,75 +3,68 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Sheets Sync — 로그인 중</title>
+  <title>Sheets Sync OAuth Redirect</title>
   <style>
-    body {
-      margin: 0;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: #1a1a2e;
-      font-family: system-ui, sans-serif;
-      color: #eaeaea;
-    }
-    .box {
-      text-align: center;
-      padding: 40px;
-    }
-    .spinner {
-      width: 36px; height: 36px;
-      border: 3px solid rgba(255,255,255,.15);
-      border-top-color: #4cc9f0;
-      border-radius: 50%;
-      animation: spin .8s linear infinite;
-      margin: 0 auto 20px;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    h2 { font-size: 16px; font-weight: 500; margin-bottom: 8px; }
-    p  { font-size: 13px; color: #a0a0b8; }
-    .error { color: #f87171; }
+    body { margin:0; background:#1a1a2e; color:#eaeaea; font-family:system-ui,sans-serif; }
+    .wrap { max-width:780px; margin:40px auto; padding:20px; }
+    .card { background:#16213e; border:1px solid rgba(255,255,255,.12); border-radius:10px; padding:16px; }
+    h1 { margin:0 0 10px; font-size:20px; }
+    p { color:#b5bdd6; line-height:1.6; margin:8px 0; }
+    .code { background:#0f3460; border-radius:8px; padding:10px; word-break:break-all; font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:12px; }
+    .btn { margin-top:10px; padding:8px 12px; border:none; border-radius:8px; cursor:pointer; background:#4cc9f0; color:#062238; font-weight:700; }
+    .err { color:#f87171; }
   </style>
 </head>
 <body>
-<div class="box">
-  <div class="spinner" id="spinner"></div>
-  <h2 id="title">로그인 처리 중...</h2>
-  <p id="subtitle">피그마로 돌아가는 중입니다. 잠시 기다려주세요.</p>
-</div>
+  <div class="wrap">
+    <div class="card">
+      <h1>Google 로그인 완료</h1>
+      <p>아래 <b>Authorization Code</b>를 복사해서 피그마 플러그인에 붙여넣어 주세요.</p>
+      <div id="error" class="err"></div>
+      <div id="codeBox" class="code"></div>
+      <button id="copyBtn" class="btn" type="button">코드 복사</button>
+      <p>복사 후 플러그인에서 <b>코드로 로그인 완료</b> 버튼을 누르면 됩니다.</p>
+    </div>
+  </div>
+  <script>
+    (function () {
+      const params = new URLSearchParams(location.search);
+      const code = params.get('code');
+      const state = params.get('state');
+      const error = params.get('error');
+      const errEl = document.getElementById('error');
+      const codeBox = document.getElementById('codeBox');
+      const copyBtn = document.getElementById('copyBtn');
 
-<script>
-  (function () {
-    const params = new URLSearchParams(location.search);
-    const code  = params.get('code');
-    const state = params.get('state');
-    const error = params.get('error');
+      if (error) {
+        errEl.textContent = 'OAuth 오류: ' + error;
+        codeBox.textContent = '';
+        copyBtn.style.display = 'none';
+        return;
+      }
+      if (!code) {
+        errEl.textContent = 'Authorization code를 받지 못했습니다.';
+        codeBox.textContent = '';
+        copyBtn.style.display = 'none';
+        return;
+      }
 
-    if (error) {
-      document.getElementById('spinner').style.display = 'none';
-      document.getElementById('title').textContent = '로그인 취소됨';
-      document.getElementById('subtitle').className = 'error';
-      document.getElementById('subtitle').textContent = error;
-      return;
-    }
+      codeBox.textContent = code;
 
-    if (!code) {
-      document.getElementById('title').textContent = '오류 발생';
-      document.getElementById('subtitle').className = 'error';
-      document.getElementById('subtitle').textContent = 'Authorization code를 받지 못했습니다.';
-      return;
-    }
+      if (window.opener) {
+        window.opener.postMessage({ type: 'oauth_callback', code, state }, '*');
+      }
 
-    // 피그마 플러그인 UI(부모 창)로 code 전달
-    if (window.opener) {
-      window.opener.postMessage({ type: 'oauth_callback', code, state }, '*');
-      setTimeout(() => window.close(), 800);
-    } else {
-      // opener가 없는 경우 (redirect 방식)
-      document.getElementById('title').textContent = '창을 닫아주세요';
-      document.getElementById('subtitle').textContent = '피그마로 돌아가서 계속 진행해주세요.';
-    }
-  })();
-</script>
+      copyBtn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(code);
+          copyBtn.textContent = '복사됨';
+          setTimeout(() => { copyBtn.textContent = '코드 복사'; }, 1200);
+        } catch (e) {
+          copyBtn.textContent = '복사 실패';
+        }
+      });
+    })();
+  </script>
 </body>
 </html>
